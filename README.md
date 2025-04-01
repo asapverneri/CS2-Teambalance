@@ -31,10 +31,12 @@
 **Example config:**
 ```json
 {
-  "AllowedDifference": 1,    // Allowed difference between teams
-  "BalanceByScore": false,   // Move top players while balancing. false = random
-  "ScrambleTeams": true,     // Enable/disable scramble feature
-  "WinsBeforeScramble": 5,   // Win difference before scramble
+  "AllowedDifference": 1,              // Allowed difference between teams
+  "BalanceByScore": false,             // Move top players while balancing. false = random
+  "Line": "---------------------------------",
+  "ScrambleTeams": true,               // Enable/disable scramble feature
+  "MinPlayersBeforeScramble": 2,       // Min players before scrambling is triggered
+  "WinsBeforeScramble": 5,             // Win difference before scramble
   "ConfigVersion": 1
 }
 ```
