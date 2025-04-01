@@ -25,7 +25,6 @@
 ## 📦 Installion
 
 - Install latest [CounterStrike Sharp](https://github.com/roflmuffin/CounterStrikeSharp) & [Metamod:Source](https://www.sourcemm.net/downloads.php/?branch=master)
-- Install all requirements listed below.
 - Download the latest release from the releases tab and copy it into the csgo/addons folder.
 
 **Example config:**
