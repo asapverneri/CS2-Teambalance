@@ -12,7 +12,7 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
     public override string ModuleName => "TeamBalance";
     public override string ModuleDescription => "Simple teambalance for CS2";
     public override string ModuleAuthor => "verneri";
-    public override string ModuleVersion => "1.0";
+    public override string ModuleVersion => "1.1";
 
     public TeamBalanceConfig Config { get; set; } = new();
 
@@ -42,34 +42,34 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
     [GameEventHandler]
     public HookResult OnRoundEnd(EventRoundEnd @event, GameEventInfo info)
     {
-        if (Config.EnableScramble) 
+        CsTeam winningTeam = (CsTeam)@event.Winner;
+        //Logger.LogInformation($"(OnRoundEnd) Winning team: {winningTeam}");
+
+        if (winningTeam == CsTeam.Terrorist || winningTeam == CsTeam.CounterTerrorist)
         {
-            CsTeam winningTeam = (CsTeam)@event.Winner;
-            //Logger.LogInformation($"(OnRoundEnd) Winning team: {winningTeam}");
-
-            if (winningTeam == CsTeam.Terrorist || winningTeam == CsTeam.CounterTerrorist)
-            {
-                TeamWins[winningTeam]++;
-                //Logger.LogInformation($"(OnRoundEnd) {winningTeam} wins. Total wins: {TeamWins[winningTeam]}");
-            }
-
-            int winDifference = Math.Abs(TeamWins[CsTeam.Terrorist] - TeamWins[CsTeam.CounterTerrorist]);
-            //Logger.LogInformation($"(OnRoundEnd) Current win difference: {winDifference}");
-            if (winDifference >= Config.WinsBeforeScramble)
-            {
-                //Logger.LogInformation($"(OnRoundEnd) Win difference of {winDifference} exceeds scramble threshold of {Config.WinsBeforeScramble}. Scrambling teams.");
-                ScrambleTeams();
-                Server.PrintToChatAll($"{Localizer["teams.scrambled"]}");
-            }
+            TeamWins[winningTeam]++;
+            //Logger.LogInformation($"(OnRoundEnd) {winningTeam} wins. Total wins: {TeamWins[winningTeam]}");
         }
 
         return HookResult.Continue;
     }
 
     [GameEventHandler]
-    public HookResult OnRoundPoststart(EventRoundPoststart @event, GameEventInfo info)
+    public HookResult OnRoundPreStart(EventRoundPrestart @event, GameEventInfo info)
     {
+        if (Config.EnableScramble)
+        {
+            int winDifference = Math.Abs(TeamWins[CsTeam.Terrorist] - TeamWins[CsTeam.CounterTerrorist]);
+            if (winDifference >= Config.WinsBeforeScramble)
+            {
+                //Logger.LogInformation($"(EventRoundPrestart) Win difference of {winDifference} exceeds scramble threshold. Scrambling teams.");
+                ScrambleTeams();
+                Server.PrintToChatAll($"{Localizer["teams.scrambled"]}");
+            }
+        }
+
         Balance();
+        //Logger.LogInformation($"(EventRoundPrestart) Fired.");
         return HookResult.Continue;
     }
 
@@ -86,10 +86,10 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
             return;
         }
 
-        bool moveFromT = tPlayers.Count > ctPlayers.Count;
-        var biggerTeam = moveFromT ? tPlayers : ctPlayers;
-        var smallerTeam = moveFromT ? ctPlayers : tPlayers;
-        var targetTeam = moveFromT ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
+        bool isTeamUnbalanced = tPlayers.Count > ctPlayers.Count;
+        var biggerTeam = isTeamUnbalanced ? tPlayers : ctPlayers;
+        var smallerTeam = isTeamUnbalanced ? ctPlayers : tPlayers;
+        var targetTeam = isTeamUnbalanced ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
 
         int difference = biggerTeam.Count - smallerTeam.Count;
 
@@ -118,11 +118,10 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
         for (int i = 0; i < playersToMove; i++)
         {
             var player = biggerTeam[i];
-            player.ChangeTeam(targetTeam);
+            player.SwitchTeam(targetTeam);
             player.PrintToChat($"{Localizer["player.moved"]}");
             //Logger.LogInformation($"(Balance) Moved player {player.PlayerName} to {targetTeam}");
         }
-
         //Logger.LogInformation("(Balance) Teams balanced.");
     }
 
@@ -133,15 +132,21 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
         TeamWins[CsTeam.Terrorist] = 0;
         TeamWins[CsTeam.CounterTerrorist] = 0;
 
+        if (players.Count < Config.PlayersBeforeScramble)
+        {
+            //Logger.LogInformation("(ScrambleTeams) Not enough players to scramble.");
+            return;
+        }
+
         var random = new Random();
         players = players.OrderBy(_ => random.Next()).ToList();
 
         int half = players.Count / 2;
         for (int i = 0; i < players.Count; i++)
         {
-            players[i].ChangeTeam(i < half ? CsTeam.Terrorist : CsTeam.CounterTerrorist);
+            players[i].SwitchTeam(i < half ? CsTeam.Terrorist : CsTeam.CounterTerrorist);
         }
-        //Logger.LogInformation($"(ScrambleTeams) Teams scrambled due to a {Config.WinsBeforeScramble} win difference.");
+        //Logger.LogInformation($"(ScrambleTeams) Teams scrambled. {half} players moved to each team.");
     }
 
     private static List<CCSPlayerController> GetAllPlayers()
