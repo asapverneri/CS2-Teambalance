@@ -1,4 +1,6 @@
 {
   "teams.scrambled": "{red}[TeamBalance]{default} Tiimit on sekoitettu!",
-  "player.moved": "{red}[TeamBalance]{default} Sinut siirrettiin toiseen tiimiin balancen vuoksi."
+  "player.moved": "{red}[TeamBalance]{default} Sinut siirrettiin toiseen tiimiin balancen vuoksi.",
+
+  "admin.scrambled": "{red}[TeamBalance]{default} Tiimit tullaan sekoittamaan seuraavalla kierroksella."
 } 

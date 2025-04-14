@@ -1,6 +1,8 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
+using CounterStrikeSharp.API.Modules.Admin;
+using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Utils;
 using Microsoft.Extensions.Logging;
@@ -10,11 +12,15 @@ namespace TeamBalance;
 public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
 {
     public override string ModuleName => "TeamBalance";
-    public override string ModuleDescription => "Simple teambalance for CS2";
+    public override string ModuleDescription => "https://github.com/asapverneri/CS2-Teambalance";
     public override string ModuleAuthor => "verneri";
-    public override string ModuleVersion => "1.1";
+    public override string ModuleVersion => "1.2";
 
     public TeamBalanceConfig Config { get; set; } = new();
+
+    private bool ForceScrambleNextRound = false;
+    private Dictionary<ulong, int> PlayerKills = new();
+    private Dictionary<ulong, int> PlayerDeaths = new(); 
 
     public void OnConfigParsed(TeamBalanceConfig config)
 	{
@@ -27,6 +33,15 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
 
         RegisterListener<Listeners.OnMapStart>(OnMapStart);
 
+
+        AddCommand($"{Config.AdminForceScramble}", "Admin command for forcing scramble", TBAdminForceScramble);
+
+        if (string.IsNullOrEmpty(Config.BalanceMode) || (Config.BalanceMode != "TopScore" && Config.BalanceMode != "StoredStats" && Config.BalanceMode != "Random"))
+        {
+            Logger.LogWarning("Invalid BalanceMode detected. Defaulting to 'Random'. Please check the Github readme.");
+            Config.BalanceMode = "Random";
+        }
+
         AddTimer(10.0f, () =>
         {
             ConVar.Find("mp_autoteambalance")!.SetValue(false);
@@ -37,18 +52,24 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
     {
         TeamWins[CsTeam.Terrorist] = 0;
         TeamWins[CsTeam.CounterTerrorist] = 0;
+
+        if (Config.BalanceMode == "StoredStats")
+        {
+            PlayerKills.Clear();
+            PlayerDeaths.Clear();
+        }
     }
 
     [GameEventHandler]
     public HookResult OnRoundEnd(EventRoundEnd @event, GameEventInfo info)
     {
         CsTeam winningTeam = (CsTeam)@event.Winner;
-        //Logger.LogInformation($"(OnRoundEnd) Winning team: {winningTeam}");
+        DebugMode($"(OnRoundEnd) Winning team: {winningTeam}");
 
         if (winningTeam == CsTeam.Terrorist || winningTeam == CsTeam.CounterTerrorist)
         {
             TeamWins[winningTeam]++;
-            //Logger.LogInformation($"(OnRoundEnd) {winningTeam} wins. Total wins: {TeamWins[winningTeam]}");
+            DebugMode($"(OnRoundEnd) {winningTeam} wins. Total wins: {TeamWins[winningTeam]}");
         }
 
         return HookResult.Continue;
@@ -57,19 +78,71 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
     [GameEventHandler]
     public HookResult OnRoundPreStart(EventRoundPrestart @event, GameEventInfo info)
     {
-        if (Config.EnableScramble)
+        if (ForceScrambleNextRound)
+        {
+            DebugMode("(EventRoundPrestart) Forced team scramble triggered.");
+            ScrambleTeams();
+            Server.PrintToChatAll($"{Localizer["teams.scrambled"]}");
+            ForceScrambleNextRound = false;
+        }
+        else if (Config.EnableScramble)
         {
             int winDifference = Math.Abs(TeamWins[CsTeam.Terrorist] - TeamWins[CsTeam.CounterTerrorist]);
             if (winDifference >= Config.WinsBeforeScramble)
             {
-                //Logger.LogInformation($"(EventRoundPrestart) Win difference of {winDifference} exceeds scramble threshold. Scrambling teams.");
+                DebugMode($"(EventRoundPrestart) Win difference of {winDifference} exceeds scramble threshold. Scrambling teams.");
                 ScrambleTeams();
                 Server.PrintToChatAll($"{Localizer["teams.scrambled"]}");
             }
         }
 
         Balance();
-        //Logger.LogInformation($"(EventRoundPrestart) Fired.");
+        DebugMode($"(EventRoundPrestart) Fired.");
+        return HookResult.Continue;
+    }
+
+    [GameEventHandler]
+    public HookResult OnPlayerDeath(EventPlayerDeath @event, GameEventInfo info)
+    {
+        if (@event == null)
+            return HookResult.Continue;
+
+        if (Config.BalanceMode != "StoredStats")
+            return HookResult.Continue;
+
+        var victim = @event.Userid;
+        var attacker = @event.Attacker;
+
+        if (victim == null || !victim.IsValid)
+            return HookResult.Continue;
+
+        if (attacker == null || !attacker.IsValid || attacker.IsBot)
+            return HookResult.Continue;
+
+        if(attacker == victim)
+            return HookResult.Continue;
+
+        if (PlayerDeaths.ContainsKey(victim.SteamID))
+        {
+            PlayerDeaths[victim.SteamID]++;
+        }
+        else
+        {
+            PlayerDeaths[victim.SteamID] = 1;
+        }
+
+        if (PlayerKills.ContainsKey(attacker.SteamID))
+        {
+            PlayerKills[attacker.SteamID]++;
+        }
+        else
+        {
+            PlayerKills[attacker.SteamID] = 1;
+        }
+
+        DebugMode($"(EventPlayerDeath) Attacker: {attacker.PlayerName} Kills: {PlayerKills[attacker.SteamID]}");
+        DebugMode($"(EventPlayerDeath) Victim: {victim.PlayerName} Deaths: {PlayerDeaths[victim.SteamID]}");
+
         return HookResult.Continue;
     }
 
@@ -78,11 +151,11 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
         var tPlayers = GetTPlayers();
         var ctPlayers = GetCTPlayers();
 
-        //Logger.LogInformation($"(Balance) Terrorists: {tPlayers.Count}, Counter-Terrorists: {ctPlayers.Count}");
+        DebugMode($"(Balance) Terrorists: {tPlayers.Count}, Counter-Terrorists: {ctPlayers.Count}");
 
         if (Math.Abs(tPlayers.Count - ctPlayers.Count) <= Config.AllowedDifference)
         {
-            //Logger.LogInformation("(Balance) Teams are already balanced.");
+            DebugMode("(Balance) Teams are already balanced.");
             return;
         }
 
@@ -97,22 +170,35 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
 
         playersToMove = Math.Max(0, playersToMove);
 
-        //Logger.LogInformation($"(Balance) Players to move: {playersToMove}");
+        DebugMode($"(Balance) Players to move: {playersToMove}");
 
         if (playersToMove <= 0)
         {
-            //Logger.LogInformation("(Balance) No players to move.");
+            DebugMode("(Balance) No players to move.");
             return;
         }
 
-        if (Config.BalanceByScore)
+        switch (Config.BalanceMode)
         {
-            biggerTeam = biggerTeam.OrderByDescending(p => p.Score).ToList();
-        }
-        else
-        {
-            var random = new Random();
-            biggerTeam = biggerTeam.OrderBy(_ => random.Next()).ToList();
+            case "TopScore":
+                biggerTeam = biggerTeam.OrderByDescending(p => p.Score).ToList();
+                break;
+
+            case "StoredStats":
+                biggerTeam = biggerTeam.OrderByDescending(p =>
+                {
+                    int kills = PlayerKills.TryGetValue(p.SteamID, out var playerKills) ? playerKills : 0;
+                    int deaths = PlayerDeaths.TryGetValue(p.SteamID, out var playerDeaths) ? playerDeaths : 0;
+
+                    return kills - deaths;
+                }).ToList();
+                break;
+
+            case "Random":
+            default:
+                var random = new Random();
+                biggerTeam = biggerTeam.OrderBy(_ => random.Next()).ToList();
+                break;
         }
 
         for (int i = 0; i < playersToMove; i++)
@@ -120,9 +206,9 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
             var player = biggerTeam[i];
             player.SwitchTeam(targetTeam);
             player.PrintToChat($"{Localizer["player.moved"]}");
-            //Logger.LogInformation($"(Balance) Moved player {player.PlayerName} to {targetTeam}");
+            DebugMode($"(Balance) Moved player {player.PlayerName} to {targetTeam}");
         }
-        //Logger.LogInformation("(Balance) Teams balanced.");
+        DebugMode("(Balance) Teams balanced.");
     }
 
     private void ScrambleTeams()
@@ -134,7 +220,7 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
 
         if (players.Count < Config.PlayersBeforeScramble)
         {
-            //Logger.LogInformation("(ScrambleTeams) Not enough players to scramble.");
+            DebugMode("(ScrambleTeams) Not enough players to scramble.");
             return;
         }
 
@@ -146,7 +232,24 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
         {
             players[i].SwitchTeam(i < half ? CsTeam.Terrorist : CsTeam.CounterTerrorist);
         }
-        //Logger.LogInformation($"(ScrambleTeams) Teams scrambled. {half} players moved to each team.");
+        DebugMode($"(ScrambleTeams) Teams scrambled. {half} players moved to each team.");
+    }
+
+    private void TBAdminForceScramble(CCSPlayerController? player, CommandInfo command)
+    {
+        if (player == null || !player.IsValid)
+            return;
+
+        if (!AdminManager.PlayerHasPermissions(player, "@teambalance/admin"))
+        {
+            player.PrintToChat("You're missing permission '@teambalance/admin'.");
+            return;
+        }
+
+        ForceScrambleNextRound = true;
+        Server.PrintToChatAll($"{Localizer["admin.scrambled"]}");
+        DebugMode($"(TBAdminForceScramble) {player.PlayerName} has forced a team scramble.");
+
     }
 
     private static List<CCSPlayerController> GetAllPlayers()
@@ -175,4 +278,13 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
         { CsTeam.Terrorist, 0 },
         { CsTeam.CounterTerrorist, 0 }
     };
+
+    private void DebugMode(string message)
+    {
+        if (Config.DebugMode)
+        {
+            Server.PrintToChatAll($"[DEBUG] {message}");
+            Logger.LogInformation($"[DEBUG] {message}");
+        }
+    }
 }

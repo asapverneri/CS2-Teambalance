@@ -14,11 +14,11 @@
 ## 📋 Features / Roadmap
 
 <p>✅ Automatic team balancing</p>
+<p>✅ Multiple balancemodes</p>
 <p>✅ Win-based scrambling</p>
 <p>✅ Configurable logic</p>
 <p>✅ Easy usage</p>
-<br>
-<p>⬜ Admin commands</p>
+<p>✅ Admin commands</p>
 
 ---
 
@@ -31,11 +31,14 @@
 ```json
 {
   "AllowedDifference": 1,              // Allowed difference between teams
-  "BalanceByScore": false,             // Move top players while balancing. false = random
+  "BalanceMode": "Random",             // Random, TopScore, StoredStats
   "Line": "---------------------------------",
   "ScrambleTeams": true,               // Enable/disable scramble feature
   "MinPlayersBeforeScramble": 2,       // Min players before scrambling is triggered
   "WinsBeforeScramble": 5,             // Win difference before scramble
+  "Line2": "---------------------------------",
+  "AdminForceScramble": "css_forcescramble",                  // Command for scrambling
+  "DebugMode": false,                  // Enable/disable debug messages
   "ConfigVersion": 1
 }
 ```
@@ -43,9 +46,9 @@
 ---
 
 ## ⌨️ Commands
-| Command         | Description                                                          | Permissions |
-|-----------------|----------------------------------------------------------------------|-------------|
-| -               | Coming                                                               | -           |
+| Command         | Description                                                          | Permissions        |
+|-----------------|----------------------------------------------------------------------|--------------------|
+| !forcescramble  | Allows admins to scramble teams.                                     | @teambalance/admin |
 
 ---
 

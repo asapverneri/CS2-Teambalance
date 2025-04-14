@@ -8,8 +8,8 @@ namespace TeamBalance
 		[JsonPropertyName("AllowedDifference")]
 		public int AllowedDifference { get; set; } = 1;
 
-        [JsonPropertyName("BalanceByScore")]
-        public bool BalanceByScore { get; set; } = false;
+        [JsonPropertyName("BalanceMode")]
+        public string BalanceMode { get; set; } = "StoredStats";
 
         [JsonPropertyName("Line")]
         public string Line { get; set; } = "---------------------------------";
@@ -22,6 +22,15 @@ namespace TeamBalance
 
         [JsonPropertyName("WinsBeforeScramble")]
         public int WinsBeforeScramble { get; set; } = 5;
+
+        [JsonPropertyName("Line2")]
+        public string Line2 { get; set; } = "---------------------------------";
+
+        [JsonPropertyName("AdminForceScramble")]
+        public string AdminForceScramble { get; set; } = "css_forcescramble";
+
+        [JsonPropertyName("DebugMode")]
+        public bool DebugMode { get; set; } = false;
 
     }
 }
