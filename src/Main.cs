@@ -14,7 +14,7 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
     public override string ModuleName => "TeamBalance";
     public override string ModuleDescription => "https://github.com/asapverneri/CS2-Teambalance";
     public override string ModuleAuthor => "verneri";
-    public override string ModuleVersion => "1.2";
+    public override string ModuleVersion => "1.3";
 
     public TeamBalanceConfig Config { get; set; } = new();
 
@@ -240,9 +240,9 @@ public class TeamBalance : BasePlugin, IPluginConfig<TeamBalanceConfig>
         if (player == null || !player.IsValid)
             return;
 
-        if (!AdminManager.PlayerHasPermissions(player, "@teambalance/admin"))
+        if (!AdminManager.PlayerHasPermissions(player, Config.AdminFlag))
         {
-            player.PrintToChat("You're missing permission '@teambalance/admin'.");
+            player.PrintToChat($"[TeamBalance] You're missing permission '{Config.AdminFlag}'.");
             return;
         }
 

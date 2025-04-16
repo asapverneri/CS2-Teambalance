@@ -26,6 +26,9 @@ namespace TeamBalance
         [JsonPropertyName("Line2")]
         public string Line2 { get; set; } = "---------------------------------";
 
+        [JsonPropertyName("AdminFlag")]
+        public string AdminFlag { get; set; } = "@teambalance/admin";
+
         [JsonPropertyName("AdminForceScramble")]
         public string AdminForceScramble { get; set; } = "css_forcescramble";
 

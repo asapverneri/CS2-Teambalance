@@ -37,6 +37,7 @@
   "MinPlayersBeforeScramble": 2,       // Min players before scrambling is triggered
   "WinsBeforeScramble": 5,             // Win difference before scramble
   "Line2": "---------------------------------",
+  "AdminFlag": "@teambalance/admin",                  // Flag to use admin commands
   "AdminForceScramble": "css_forcescramble",                  // Command for scrambling
   "DebugMode": false,                  // Enable/disable debug messages
   "ConfigVersion": 1
@@ -48,7 +49,7 @@
 ## ⌨️ Commands
 | Command         | Description                                                          | Permissions        |
 |-----------------|----------------------------------------------------------------------|--------------------|
-| !forcescramble  | Allows admins to scramble teams.                                     | @teambalance/admin |
+| !forcescramble  | Allows admins to scramble teams.                                     | Changeable         |
 
 ---
 
