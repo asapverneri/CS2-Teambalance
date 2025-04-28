@@ -1,0 +1,6 @@
+{
+  "teams.scrambled": "{red}[TeamBalance]{default} Komandas ir sajauktas!",
+  "player.moved": "{red}[TeamBalance]{default} Tu esi pārvietots, lai sabalansētu komandas.",
+
+  "admin.scrambled": "{red}[TeamBalance]{default} Komandas tiks sajauktas nākamā raunda sākumā."
+}
